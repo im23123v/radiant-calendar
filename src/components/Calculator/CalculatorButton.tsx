@@ -9,6 +9,7 @@ interface CalculatorButtonProps {
   variant?: ButtonVariant;
   className?: string;
   span?: number;
+  disabled?: boolean;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -26,18 +27,23 @@ export const CalculatorButton: React.FC<CalculatorButtonProps> = ({
   variant = 'number',
   className,
   span = 1,
+  disabled = false,
 }) => {
   const handleClick = () => {
-    onClick();
+    if (!disabled) {
+      onClick();
+    }
   };
 
   return (
     <button
       onClick={handleClick}
+      disabled={disabled}
       className={cn(
         variantClasses[variant],
-        'h-16 flex items-center justify-center',
+        'h-14 flex items-center justify-center text-sm',
         span === 2 && 'col-span-2',
+        disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
     >
