@@ -34,6 +34,76 @@ const initialState: CalculatorState = {
   expressionStack: [],
 };
 
+// Pure helper functions - moved outside hook
+const getDecimalValue = (display: string, base: NumberBase): number => {
+  switch (base) {
+    case 'HEX': return parseInt(display, 16);
+    case 'OCT': return parseInt(display, 8);
+    case 'BIN': return parseInt(display, 2);
+    default: return parseFloat(display);
+  }
+};
+
+const formatForBase = (value: number, base: NumberBase): string => {
+  if (isNaN(value) || !isFinite(value)) return String(value);
+  const intValue = Math.floor(value);
+  switch (base) {
+    case 'HEX': return intValue.toString(16).toUpperCase();
+    case 'OCT': return intValue.toString(8);
+    case 'BIN': return intValue.toString(2);
+    default: return String(value);
+  }
+};
+
+const calculate = (a: number, b: number, op: Operator): number => {
+  switch (op) {
+    case '+': return a + b;
+    case '-': return a - b;
+    case '×': return a * b;
+    case '÷': return b !== 0 ? a / b : NaN;
+    case '^': return Math.pow(a, b);
+    case 'mod': return a % b;
+    case 'yroot': return Math.pow(a, 1 / b);
+    default: return b;
+  }
+};
+
+const factorial = (n: number): number => {
+  if (n < 0) return NaN;
+  if (n === 0 || n === 1) return 1;
+  if (n > 170) return Infinity;
+  let result = 1;
+  for (let i = 2; i <= n; i++) {
+    result *= i;
+  }
+  return result;
+};
+
+const gcd = (a: number, b: number): number => {
+  a = Math.abs(Math.floor(a));
+  b = Math.abs(Math.floor(b));
+  while (b) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a;
+};
+
+const lcm = (a: number, b: number): number => {
+  return Math.abs(Math.floor(a) * Math.floor(b)) / gcd(a, b);
+};
+
+const permutation = (n: number, r: number): number => {
+  if (r > n || n < 0 || r < 0) return NaN;
+  return factorial(n) / factorial(n - r);
+};
+
+const combination = (n: number, r: number): number => {
+  if (r > n || n < 0 || r < 0) return NaN;
+  return factorial(n) / (factorial(r) * factorial(n - r));
+};
+
 export const useCalculator = () => {
   const [state, setState] = useState<CalculatorState>(initialState);
 
@@ -57,12 +127,10 @@ export const useCalculator = () => {
 
   const inputDigit = useCallback((digit: string) => {
     setState((prev) => {
-      // For hex mode, allow A-F
       if (prev.numberBase === 'HEX' && /[A-Fa-f]/.test(digit)) {
         digit = digit.toUpperCase();
       }
       
-      // Validate digit for current base
       if (prev.numberBase === 'BIN' && !/[01]/.test(digit)) return prev;
       if (prev.numberBase === 'OCT' && !/[0-7]/.test(digit)) return prev;
       if (prev.numberBase === 'DEC' && !/[0-9]/.test(digit)) return prev;
@@ -89,7 +157,7 @@ export const useCalculator = () => {
 
   const inputDecimal = useCallback(() => {
     setState((prev) => {
-      if (prev.numberBase !== 'DEC') return prev; // Only allow decimals in DEC mode
+      if (prev.numberBase !== 'DEC') return prev;
       
       if (prev.waitingForOperand) {
         return {
@@ -133,26 +201,6 @@ export const useCalculator = () => {
     });
   }, []);
 
-  const getDecimalValue = useCallback((display: string, base: NumberBase): number => {
-    switch (base) {
-      case 'HEX': return parseInt(display, 16);
-      case 'OCT': return parseInt(display, 8);
-      case 'BIN': return parseInt(display, 2);
-      default: return parseFloat(display);
-    }
-  }, []);
-
-  const formatForBase = useCallback((value: number, base: NumberBase): string => {
-    if (isNaN(value) || !isFinite(value)) return String(value);
-    const intValue = Math.floor(value);
-    switch (base) {
-      case 'HEX': return intValue.toString(16).toUpperCase();
-      case 'OCT': return intValue.toString(8);
-      case 'BIN': return intValue.toString(2);
-      default: return String(value);
-    }
-  }, []);
-
   const performOperation = useCallback((op: Operator) => {
     setState((prev) => {
       const inputValue = getDecimalValue(prev.display, prev.numberBase);
@@ -187,20 +235,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue, formatForBase]);
-
-  const calculate = (a: number, b: number, op: Operator): number => {
-    switch (op) {
-      case '+': return a + b;
-      case '-': return a - b;
-      case '×': return a * b;
-      case '÷': return b !== 0 ? a / b : NaN;
-      case '^': return Math.pow(a, b);
-      case 'mod': return a % b;
-      case 'yroot': return Math.pow(a, 1 / b);
-      default: return b;
-    }
-  };
+  }, []);
 
   const performEquals = useCallback(() => {
     setState((prev) => {
@@ -230,7 +265,7 @@ export const useCalculator = () => {
         history: [newEntry, ...prev.history].slice(0, 50),
       };
     });
-  }, [getDecimalValue, formatForBase]);
+  }, []);
 
   const backspace = useCallback(() => {
     setState((prev) => {
@@ -247,48 +282,6 @@ export const useCalculator = () => {
     });
   }, []);
 
-  // Factorial helper
-  const factorial = (n: number): number => {
-    if (n < 0) return NaN;
-    if (n === 0 || n === 1) return 1;
-    if (n > 170) return Infinity;
-    let result = 1;
-    for (let i = 2; i <= n; i++) {
-      result *= i;
-    }
-    return result;
-  };
-
-  // GCD helper
-  const gcd = (a: number, b: number): number => {
-    a = Math.abs(Math.floor(a));
-    b = Math.abs(Math.floor(b));
-    while (b) {
-      const t = b;
-      b = a % b;
-      a = t;
-    }
-    return a;
-  };
-
-  // LCM helper
-  const lcm = (a: number, b: number): number => {
-    return Math.abs(Math.floor(a) * Math.floor(b)) / gcd(a, b);
-  };
-
-  // Permutation
-  const permutation = (n: number, r: number): number => {
-    if (r > n || n < 0 || r < 0) return NaN;
-    return factorial(n) / factorial(n - r);
-  };
-
-  // Combination
-  const combination = (n: number, r: number): number => {
-    if (r > n || n < 0 || r < 0) return NaN;
-    return factorial(n) / (factorial(r) * factorial(n - r));
-  };
-
-  // Scientific functions
   const performScientific = useCallback((func: string) => {
     setState((prev) => {
       const value = getDecimalValue(prev.display, prev.numberBase);
@@ -298,28 +291,21 @@ export const useCalculator = () => {
       const angleValue = prev.isRadians ? value : (value * Math.PI) / 180;
       
       switch (func) {
-        // Trigonometric
         case 'sin': result = Math.sin(angleValue); break;
         case 'cos': result = Math.cos(angleValue); break;
         case 'tan': result = Math.tan(angleValue); break;
         case 'asin': result = prev.isRadians ? Math.asin(value) : (Math.asin(value) * 180) / Math.PI; break;
         case 'acos': result = prev.isRadians ? Math.acos(value) : (Math.acos(value) * 180) / Math.PI; break;
         case 'atan': result = prev.isRadians ? Math.atan(value) : (Math.atan(value) * 180) / Math.PI; break;
-        
-        // Hyperbolic
         case 'sinh': result = Math.sinh(value); break;
         case 'cosh': result = Math.cosh(value); break;
         case 'tanh': result = Math.tanh(value); break;
         case 'asinh': result = Math.asinh(value); break;
         case 'acosh': result = Math.acosh(value); break;
         case 'atanh': result = Math.atanh(value); break;
-        
-        // Logarithmic
         case 'log': result = Math.log10(value); break;
         case 'ln': result = Math.log(value); break;
         case 'log2': result = Math.log2(value); break;
-        
-        // Powers and roots
         case 'sqrt': result = Math.sqrt(value); break;
         case 'cbrt': result = Math.cbrt(value); break;
         case 'x2': result = value * value; break;
@@ -328,8 +314,6 @@ export const useCalculator = () => {
         case 'exp': result = Math.exp(value); break;
         case '10x': result = Math.pow(10, value); break;
         case '2x': result = Math.pow(2, value); break;
-        
-        // Special functions
         case 'fact': result = factorial(Math.floor(value)); break;
         case 'abs': result = Math.abs(value); break;
         case 'floor': result = Math.floor(value); break;
@@ -339,7 +323,6 @@ export const useCalculator = () => {
         case 'rand': result = Math.random(); break;
         case 'dtor': result = (value * Math.PI) / 180; break;
         case 'rtod': result = (value * 180) / Math.PI; break;
-        
         default: result = value;
       }
       
@@ -351,9 +334,8 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue, formatForBase]);
+  }, []);
 
-  // Two-argument scientific functions
   const performTwoArgScientific = useCallback((func: string) => {
     setState((prev) => {
       const value = getDecimalValue(prev.display, prev.numberBase);
@@ -367,7 +349,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue]);
+  }, []);
 
   const performTwoArgEquals = useCallback((func: string) => {
     setState((prev) => {
@@ -394,7 +376,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue, formatForBase]);
+  }, []);
 
   const insertConstant = useCallback((constant: string) => {
     setState((prev) => {
@@ -402,8 +384,8 @@ export const useCalculator = () => {
       switch (constant) {
         case 'π': value = Math.PI; break;
         case 'e': value = Math.E; break;
-        case 'φ': value = (1 + Math.sqrt(5)) / 2; break; // Golden ratio
-        case 'γ': value = 0.5772156649015329; break; // Euler-Mascheroni
+        case 'φ': value = (1 + Math.sqrt(5)) / 2; break;
+        case 'γ': value = 0.5772156649015329; break;
         case '√2': value = Math.SQRT2; break;
         case 'ln2': value = Math.LN2; break;
         case 'ln10': value = Math.LN10; break;
@@ -417,7 +399,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [formatForBase]);
+  }, []);
 
   const toggleAngleMode = useCallback(() => {
     setState((prev) => ({
@@ -436,7 +418,7 @@ export const useCalculator = () => {
         display: newDisplay,
       };
     });
-  }, [getDecimalValue, formatForBase]);
+  }, []);
 
   const toggleSecondFunction = useCallback(() => {
     setState((prev) => ({
@@ -445,7 +427,6 @@ export const useCalculator = () => {
     }));
   }, []);
 
-  // Memory functions
   const memoryClear = useCallback(() => {
     setState((prev) => ({ ...prev, memory: null }));
   }, []);
@@ -460,7 +441,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [formatForBase]);
+  }, []);
 
   const memoryAdd = useCallback(() => {
     setState((prev) => {
@@ -472,7 +453,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue]);
+  }, []);
 
   const memorySubtract = useCallback(() => {
     setState((prev) => {
@@ -484,7 +465,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue]);
+  }, []);
 
   const memoryStore = useCallback(() => {
     setState((prev) => {
@@ -496,7 +477,7 @@ export const useCalculator = () => {
         waitingForOperand: true,
       };
     });
-  }, [getDecimalValue]);
+  }, []);
 
   const selectHistoryEntry = useCallback((entry: HistoryEntry) => {
     setState((prev) => ({
@@ -513,7 +494,6 @@ export const useCalculator = () => {
     setState((prev) => ({ ...prev, history: [] }));
   }, []);
 
-  // Parentheses support
   const inputOpenParen = useCallback(() => {
     setState((prev) => ({
       ...prev,
@@ -537,7 +517,6 @@ export const useCalculator = () => {
     });
   }, []);
 
-  // Keyboard support
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key >= '0' && e.key <= '9') {
